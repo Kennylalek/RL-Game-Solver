@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RL Game Solver</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>RL Game Solver</h1>
+    <p style="margin-top:.75rem">
+      <span class="badge">Q-Learning</span>
+      <span class="badge">MRV Policy</span>
+      <span class="badge">Feature State</span>
+    </p>
+    <p style="margin-top:.5rem;color:var(--muted);font-size:.82rem">
+      Reinforcement Learning agents trained in Python · Flask backend
+    </p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('sudoku')">🧩 Sudoku</button>
+    <button class="tab"        onclick="switchTab('2048')">🎮 2048</button>
+  </div>
+
+  <!-- SUDOKU PANEL -->
+  <div class="panel active" id="panel-sudoku">
+    <div class="game-layout">
+
+      <div>
+        <div class="card">
+          <div class="card-title">Board</div>
+          <div class="sudoku-board" id="sudoku-board"></div>
+          <div class="progress-bar"><div class="progress-fill" id="sudoku-prog" style="width:0%"></div></div>
+          <div style="font-size:.72rem;color:var(--muted);text-align:center" id="sudoku-prog-txt">Ready</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="card">
+          <div class="card-title">Controls</div>
+          <div class="controls">
+            <div>
+              <div class="label">Difficulty</div>
+              <select id="sudoku-diff" onchange="onDiffChange()">
+                <option value="easy">Easy (51 empty)</option>
+                <option value="medium">Medium (45 empty)</option>
+                <option value="hard">Hard (51 empty)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btn-s-train" onclick="trainSudoku()">⚡ Train RL Agent</button>
+            <button class="btn btn-primary" id="btn-s-solve" onclick="solveSudoku()" disabled>▶ Solve Step-by-Step</button>
+            <button class="btn btn-secondary" onclick="resetSudoku()">↺ Reset Board</button>
+            <div class="speed-row">
+              <span>Speed</span>
+              <input type="range" id="s-speed" min="60" max="900" value="350" step="30"
+                oninput="document.getElementById('s-speed-lbl').textContent=this.value+'ms'">
+              <span id="s-speed-lbl">350ms</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Stats</div>
+          <div class="stat-grid">
+            <div class="stat"><div class="stat-value" id="s-step">0</div><div class="stat-label">Step</div></div>
+            <div class="stat"><div class="stat-value" id="s-total">—</div><div class="stat-label">Total</div></div>
+            <div class="stat"><div class="stat-value" id="s-filled">0</div><div class="stat-label">Filled</div></div>
+            <div class="stat"><div class="stat-value" id="s-reward">—</div><div class="stat-label">Reward</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Agent Log</div>
+          <div class="log" id="s-log"><div class="log-entry">Ready. Train an agent to begin.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2048 PANEL -->
+  <div class="panel" id="panel-2048">
+    <div class="game-layout">
+
+      <div>
+        <div class="card">
+          <div class="card-title">Board</div>
+          <div class="board-2048" id="board-2048"></div>
+          <div class="dpad">
+            <div></div><div class="dpad-btn" id="dir-UP">↑</div><div></div>
+            <div class="dpad-btn" id="dir-LEFT">←</div>
+            <div class="dpad-btn" style="background:transparent"></div>
+            <div class="dpad-btn" id="dir-RIGHT">→</div>
+            <div></div><div class="dpad-btn" id="dir-DOWN">↓</div><div></div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="g-prog" style="width:0%"></div></div>
+          <div style="font-size:.72rem;color:var(--muted);text-align:center" id="g-prog-txt">Ready</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="card">
+          <div class="card-title">Controls</div>
+          <div class="controls">
+            <button class="btn btn-primary" id="btn-g-train" onclick="train2048()">⚡ Train RL Agent</button>
+            <button class="btn btn-primary" id="btn-g-play"  onclick="play2048()" disabled>▶ Play Episode</button>
+            <button class="btn btn-secondary" onclick="reset2048()">↺ Reset</button>
+            <div class="speed-row">
+              <span>Speed</span>
+              <input type="range" id="g-speed" min="30" max="600" value="180" step="30"
+                oninput="document.getElementById('g-speed-lbl').textContent=this.value+'ms'">
+              <span id="g-speed-lbl">180ms</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Stats</div>
+          <div class="stat-grid">
+            <div class="stat"><div class="stat-value" id="g-step">0</div><div class="stat-label">Move</div></div>
+            <div class="stat"><div class="stat-value" id="g-score">0</div><div class="stat-label">Score</div></div>
+            <div class="stat"><div class="stat-value" id="g-max">—</div><div class="stat-label">Max Tile</div></div>
+            <div class="stat"><div class="stat-value" id="g-reward">—</div><div class="stat-label">Reward</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Agent Log</div>
+          <div class="log" id="g-log"><div class="log-entry">Ready. Train an agent to begin.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

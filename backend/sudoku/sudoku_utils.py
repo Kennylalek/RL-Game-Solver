@@ -1,114 +1,282 @@
 """
-sudoku_utils.py
-Utility functions for Sudoku puzzle generation and solving.
+Deterministic Sudoku utilities.
+
+The public generator returns puzzles with a unique solution by default. Training
+can opt out of uniqueness checks when a large number of random boards is needed.
 """
 
+from __future__ import annotations
+
 import random
+from typing import Iterable
 
-def sudoku_empty_count(board, diff):
-    counts = {"easy": 51, "medium": 45, "hard": 51}
-    return counts.get(diff, 45)
+BOARD_SIZE = 81
+GRID_SIZE = 9
+BOX_SIZE = 3
 
-def generate_sudoku(num_empty=45, seed=None):
-    """Generate a valid Sudoku puzzle by back-tracking from a full solution."""
-    if seed is not None:
-        random.seed(seed)
-    
-    # Build a complete solved board
-    board = [0] * 81
-    
-    def is_valid(b, idx, val):
-        r, c = divmod(idx, 9)
-        # row
-        if val in b[r*9:(r+1)*9]: 
-            return False
-        # col
-        if val in [b[c + i*9] for i in range(9)]: 
-            return False
-        # box
-        br, bc = (r//3)*3, (c//3)*3
-        for dr in range(3):
-            for dc in range(3):
-                if b[(br+dr)*9 + (bc+dc)] == val: 
-                    return False
-        return True
-    
-    def fill(pos):
-        if pos == 81: 
-            return True
-        nums = list(range(1, 10))
-        random.shuffle(nums)
-        for n in nums:
-            if is_valid(board, pos, n):
-                board[pos] = n
-                if fill(pos + 1): 
-                    return True
-                board[pos] = 0
+DIFFICULTY_EMPTY_COUNTS = {
+    "easy": 35,
+    "medium": 45,
+    "hard": 55,
+}
+
+
+def empty_count_for_difficulty(difficulty: str) -> int:
+    return DIFFICULTY_EMPTY_COUNTS.get(difficulty, DIFFICULTY_EMPTY_COUNTS["medium"])
+
+
+def sudoku_empty_count(board: list[int], diff: str) -> int:
+    return empty_count_for_difficulty(diff)
+
+
+def _rng(seed: int | None = None) -> random.Random:
+    return random.Random(seed)
+
+
+def _row_values(board: list[int], row: int) -> Iterable[int]:
+    start = row * GRID_SIZE
+    return board[start:start + GRID_SIZE]
+
+
+def _col_values(board: list[int], col: int) -> Iterable[int]:
+    return (board[col + GRID_SIZE * row] for row in range(GRID_SIZE))
+
+
+def _box_values(board: list[int], row: int, col: int) -> Iterable[int]:
+    box_row = (row // BOX_SIZE) * BOX_SIZE
+    box_col = (col // BOX_SIZE) * BOX_SIZE
+    for dr in range(BOX_SIZE):
+        for dc in range(BOX_SIZE):
+            yield board[(box_row + dr) * GRID_SIZE + box_col + dc]
+
+
+def is_valid_placement(board: list[int], idx: int, val: int) -> bool:
+    if not 1 <= val <= GRID_SIZE:
         return False
-    
-    fill(0)
-    solution = board[:]
-    
-    # Remove cells
-    puzzle = board[:]
-    cells = list(range(81))
-    random.shuffle(cells)
-    removed = 0
-    for idx in cells:
-        if removed >= num_empty: 
-            break
-        puzzle[idx] = 0
-        removed += 1
-    
-    return puzzle, solution
 
-def get_candidates(board, idx):
-    """Return valid digits for cell idx."""
+    row, col = divmod(idx, GRID_SIZE)
+    previous = board[idx]
+    board[idx] = 0
+    valid = (
+        val not in _row_values(board, row)
+        and val not in _col_values(board, col)
+        and val not in _box_values(board, row, col)
+    )
+    board[idx] = previous
+    return valid
+
+
+def is_valid_board(board: list[int]) -> bool:
+    if len(board) != BOARD_SIZE:
+        return False
+    for idx, val in enumerate(board):
+        if val == 0:
+            continue
+        if not is_valid_placement(board, idx, val):
+            return False
+    return True
+
+
+def get_candidates(board: list[int], idx: int) -> list[int]:
+    """Return valid digits for an empty cell."""
     if board[idx] != 0:
         return []
-    r, c = divmod(idx, 9)
-    used = set()
-    for i in range(9):
-        used.add(board[r*9 + i])
-        used.add(board[c + i*9])
-    br, bc = (r//3)*3, (c//3)*3
-    for dr in range(3):
-        for dc in range(3):
-            used.add(board[(br+dr)*9 + (bc+dc)])
-    return [v for v in range(1, 10) if v not in used]
 
-def mrv_cell(board):
-    """Return index of empty cell with Minimum Remaining Values."""
-    best_idx, best_count = -1, 10
-    for i in range(81):
-        if board[i] == 0:
-            cands = get_candidates(board, i)
-            if not cands: 
-                return i, []   # contradiction
-            if len(cands) < best_count:
-                best_idx, best_count = i, len(cands)
-                best_cands = cands
-    if best_idx == -1: 
-        return -1, []
-    return best_idx, best_cands
+    row, col = divmod(idx, GRID_SIZE)
+    used = set(_row_values(board, row))
+    used.update(_col_values(board, col))
+    used.update(_box_values(board, row, col))
+    used.discard(0)
+    return [val for val in range(1, GRID_SIZE + 1) if val not in used]
 
-def state_features(board):
+
+def mrv_cell(board: list[int]) -> tuple[int, list[int]]:
+    """Return the empty cell with minimum remaining values."""
+    best_idx = -1
+    best_candidates: list[int] = []
+    best_count = GRID_SIZE + 1
+
+    for idx in range(BOARD_SIZE):
+        if board[idx] != 0:
+            continue
+
+        candidates = get_candidates(board, idx)
+        if not candidates:
+            return idx, []
+        if len(candidates) < best_count:
+            best_idx = idx
+            best_candidates = candidates
+            best_count = len(candidates)
+            if best_count == 1:
+                break
+
+    return best_idx, best_candidates
+
+
+def first_empty_cell(board: list[int]) -> tuple[int, list[int]]:
+    for idx, val in enumerate(board):
+        if val == 0:
+            return idx, get_candidates(board, idx)
+    return -1, []
+
+
+def state_features(board: list[int]) -> tuple[int, int, int, int]:
     """
-    Compact feature vector → hash key for Q-table.
-    Features: (empty_count, conflicts, mrv_min_cands)
+    Compact feature vector for tabular Q-learning:
+    (empty bucket, naked singles, double candidates, contradictions).
     """
     empty = board.count(0)
-    # count cells with 1 candidate (naked singles) and 2 candidates
     singles = 0
     doubles = 0
     conflicts = 0
-    for i in range(81):
-        if board[i] == 0:
-            c = get_candidates(board, i)
-            if len(c) == 0: 
-                conflicts += 1
-            elif len(c) == 1: 
-                singles += 1
-            elif len(c) == 2: 
-                doubles += 1
+
+    for idx in range(BOARD_SIZE):
+        if board[idx] != 0:
+            continue
+        count = len(get_candidates(board, idx))
+        if count == 0:
+            conflicts += 1
+        elif count == 1:
+            singles += 1
+        elif count == 2:
+            doubles += 1
+
     return (empty // 5, min(singles, 9), min(doubles, 9), min(conflicts, 3))
+
+
+def count_solutions(board: list[int], limit: int = 2) -> int:
+    """Count solutions up to a small limit; enough to prove uniqueness."""
+    working = board[:]
+    if not is_valid_board(working):
+        return 0
+
+    found = 0
+
+    def search() -> None:
+        nonlocal found
+        if found >= limit:
+            return
+
+        idx, candidates = mrv_cell(working)
+        if idx == -1:
+            found += 1
+            return
+        if not candidates:
+            return
+
+        for val in candidates:
+            working[idx] = val
+            search()
+            working[idx] = 0
+            if found >= limit:
+                return
+
+    search()
+    return found
+
+
+def solve_sudoku_board(
+    puzzle: list[int],
+    *,
+    use_mrv: bool = True,
+    randomize: bool = False,
+    seed: int | None = None,
+    max_nodes: int = 100_000,
+) -> tuple[list[int], bool, int]:
+    """Solve a Sudoku puzzle with deterministic or randomized backtracking."""
+    board = puzzle[:]
+    rng = _rng(seed)
+    nodes = 0
+
+    def select_cell() -> tuple[int, list[int]]:
+        return mrv_cell(board) if use_mrv else first_empty_cell(board)
+
+    def search() -> bool:
+        nonlocal nodes
+        if nodes >= max_nodes:
+            return False
+
+        idx, candidates = select_cell()
+        if idx == -1:
+            return True
+        if not candidates:
+            return False
+
+        if randomize:
+            rng.shuffle(candidates)
+
+        for val in candidates:
+            nodes += 1
+            board[idx] = val
+            if search():
+                return True
+            board[idx] = 0
+
+        return False
+
+    solved = is_valid_board(board) and search()
+    return board, solved, nodes
+
+
+def _fill_complete_board(board: list[int], rng: random.Random, pos: int = 0) -> bool:
+    if pos == BOARD_SIZE:
+        return True
+
+    if board[pos] != 0:
+        return _fill_complete_board(board, rng, pos + 1)
+
+    values = list(range(1, GRID_SIZE + 1))
+    rng.shuffle(values)
+    for val in values:
+        if is_valid_placement(board, pos, val):
+            board[pos] = val
+            if _fill_complete_board(board, rng, pos + 1):
+                return True
+            board[pos] = 0
+
+    return False
+
+
+def generate_sudoku(
+    num_empty: int = 45,
+    seed: int | None = None,
+    *,
+    ensure_unique: bool = True,
+    max_attempts: int = 20,
+) -> tuple[list[int], list[int]]:
+    """
+    Generate a valid Sudoku puzzle and its solution.
+
+    When ``ensure_unique`` is true, removals are accepted only if the puzzle has
+    exactly one solution. If the requested target cannot be reached on the first
+    solved board, the function retries with deterministic derived seeds.
+    """
+    target_empty = max(0, min(num_empty, BOARD_SIZE - 17))
+
+    for attempt in range(max_attempts):
+        attempt_seed = None if seed is None else seed + attempt * 9973
+        rng = _rng(attempt_seed)
+        solved = [0] * BOARD_SIZE
+        if not _fill_complete_board(solved, rng):
+            continue
+
+        puzzle = solved[:]
+        cells = list(range(BOARD_SIZE))
+        rng.shuffle(cells)
+        removed = 0
+
+        for idx in cells:
+            if removed >= target_empty:
+                break
+
+            previous = puzzle[idx]
+            puzzle[idx] = 0
+            if ensure_unique and count_solutions(puzzle, limit=2) != 1:
+                puzzle[idx] = previous
+                continue
+            removed += 1
+
+        if removed >= target_empty or not ensure_unique:
+            return puzzle, solved
+
+    raise RuntimeError(f"Could not generate a unique Sudoku puzzle with {target_empty} empty cells")

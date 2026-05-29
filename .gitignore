@@ -1,3 +1,8 @@
 __pycache__/
 venv/
+.venv/
 .vscode/
+backend/artifacts/
+artifacts/
+frontend/node_modules/
+frontend/dist/

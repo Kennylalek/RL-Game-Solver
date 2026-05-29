@@ -1,141 +1,305 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RL Game Solver</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<div class="app">
-  <header>
-    <h1>RL Game Solver</h1>
-    <p style="margin-top:.75rem">
-      <span class="badge">Q-Learning</span>
-      <span class="badge">MRV Policy</span>
-      <span class="badge">Feature State</span>
-    </p>
-    <p style="margin-top:.5rem;color:var(--muted);font-size:.82rem">
-      Reinforcement Learning agents trained in Python · Flask backend
-    </p>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RL Game Solver</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('sudoku')">🧩 Sudoku</button>
-    <button class="tab"        onclick="switchTab('2048')">🎮 2048</button>
-  </div>
-
-  <!-- SUDOKU PANEL -->
-  <div class="panel active" id="panel-sudoku">
-    <div class="game-layout">
-
-      <div>
-        <div class="card">
-          <div class="card-title">Board</div>
-          <div class="sudoku-board" id="sudoku-board"></div>
-          <div class="progress-bar"><div class="progress-fill" id="sudoku-prog" style="width:0%"></div></div>
-          <div style="font-size:.72rem;color:var(--muted);text-align:center" id="sudoku-prog-txt">Ready</div>
+      <header class="hero">
+        <div>
+          <div class="eyebrow">Reinforcement Learning Project 2026</div>
+          <h1>RL Game Solver</h1>
+          <p>Sudoku and 2048 agents with reproducible baselines, persisted Q-tables, and report-ready metrics.</p>
         </div>
-      </div>
+      </header>
 
-      <div style="display:flex;flex-direction:column;gap:1rem">
-        <div class="card">
-          <div class="card-title">Controls</div>
-          <div class="controls">
-            <div>
-              <div class="label">Difficulty</div>
-              <select id="sudoku-diff" onchange="onDiffChange()">
-                <option value="easy">Easy (51 empty)</option>
-                <option value="medium">Medium (45 empty)</option>
-                <option value="hard">Hard (51 empty)</option>
-              </select>
+      <div class="alert" id="alert"></div>
+
+      <section class="toolbar card">
+        <div class="segmented">
+          <button class="active" id="tab-sudoku">Sudoku</button>
+          <button id="tab-2048">2048</button>
+        </div>
+        <div class="status-pills">
+          <span class="status-pill" id="status-sudoku">Sudoku idle</span>
+          <span class="status-pill" id="status-2048">2048 idle</span>
+        </div>
+      </section>
+
+      <section class="panel active workspace" id="panel-sudoku">
+        <section class="card board-card">
+          <div class="card-header"><div class="card-title">Sudoku board</div></div>
+          <div class="card-body">
+            <div class="sudoku-board" id="sudoku-board"></div>
+            <input class="range" id="sudoku-range" type="range" min="0" max="0" value="0" />
+          </div>
+        </section>
+
+        <div class="side-column">
+          <section class="card">
+            <div class="card-header"><div class="card-title">Controls</div></div>
+            <div class="card-body">
+              <div class="control-grid">
+                <label>
+                  Difficulty
+                  <select class="select" id="sudoku-difficulty">
+                    <option value="easy">easy</option>
+                    <option value="medium" selected>medium</option>
+                    <option value="hard">hard</option>
+                  </select>
+                </label>
+                <label>
+                  Episodes
+                  <input class="input" id="sudoku-episodes" type="number" min="10" max="2000" value="300" />
+                </label>
+                <label>
+                  Seed
+                  <input class="input" id="sudoku-seed" type="number" min="0" max="999999999" value="29" />
+                </label>
+                <label>
+                  Algorithm
+                  <select class="select" id="sudoku-algorithm">
+                    <option value="rl">RL Q + MRV</option>
+                    <option value="mrv">MRV Heuristic</option>
+                    <option value="backtracking">Pure Backtracking</option>
+                    <option value="random_mrv">Random MRV</option>
+                  </select>
+                </label>
+              </div>
+              <div class="button-row">
+                <button class="button button-primary" id="btn-sudoku-train">Train</button>
+                <button class="button button-secondary" id="btn-sudoku-solve" disabled>Solve</button>
+                <button class="button button-ghost" id="btn-sudoku-puzzle">Puzzle</button>
+              </div>
+              <div class="button-row">
+                <button class="button button-secondary" id="btn-sudoku-save">Save model</button>
+                <button class="button button-secondary" id="btn-sudoku-load">Load model</button>
+                <button class="button button-danger" id="btn-sudoku-reset">Reset model</button>
+              </div>
             </div>
-            <button class="btn btn-primary" id="btn-s-train" onclick="trainSudoku()">⚡ Train RL Agent</button>
-            <button class="btn btn-primary" id="btn-s-solve" onclick="solveSudoku()" disabled>▶ Solve Step-by-Step</button>
-            <button class="btn btn-secondary" onclick="resetSudoku()">↺ Reset Board</button>
-            <div class="speed-row">
-              <span>Speed</span>
-              <input type="range" id="s-speed" min="60" max="900" value="350" step="30"
-                oninput="document.getElementById('s-speed-lbl').textContent=this.value+'ms'">
-              <span id="s-speed-lbl">350ms</span>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><div class="card-title">Stats</div></div>
+            <div class="card-body stat-grid">
+              <div class="stat"><div class="stat-value" id="s-stat-step">0</div><div class="stat-label">Step</div></div>
+              <div class="stat"><div class="stat-value" id="s-stat-filled">0</div><div class="stat-label">Filled</div></div>
+              <div class="stat"><div class="stat-value" id="s-stat-reward">-</div><div class="stat-label">Reward</div></div>
+              <div class="stat"><div class="stat-value" id="s-stat-message">Ready</div><div class="stat-label">Message</div></div>
             </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><div class="card-title">Explainability</div></div>
+            <div class="card-body" id="sudoku-explain"><div class="empty-state">Run a Sudoku solve to inspect Q-values.</div></div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><div class="card-title">Difficulty validation</div></div>
+            <div class="card-body" id="sudoku-validation"><div class="empty-state">Load a puzzle to validate difficulty.</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel workspace" id="panel-2048">
+        <section class="card board-card">
+          <div class="card-header"><div class="card-title">2048 board</div></div>
+          <div class="card-body">
+            <div class="game-board" id="game-board"></div>
+            <input class="range" id="game-range" type="range" min="0" max="0" value="0" />
           </div>
-        </div>
+        </section>
 
-        <div class="card">
-          <div class="card-title">Stats</div>
-          <div class="stat-grid">
-            <div class="stat"><div class="stat-value" id="s-step">0</div><div class="stat-label">Step</div></div>
-            <div class="stat"><div class="stat-value" id="s-total">—</div><div class="stat-label">Total</div></div>
-            <div class="stat"><div class="stat-value" id="s-filled">0</div><div class="stat-label">Filled</div></div>
-            <div class="stat"><div class="stat-value" id="s-reward">—</div><div class="stat-label">Reward</div></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">Agent Log</div>
-          <div class="log" id="s-log"><div class="log-entry">Ready. Train an agent to begin.</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2048 PANEL -->
-  <div class="panel" id="panel-2048">
-    <div class="game-layout">
-
-      <div>
-        <div class="card">
-          <div class="card-title">Board</div>
-          <div class="board-2048" id="board-2048"></div>
-          <div class="dpad">
-            <div></div><div class="dpad-btn" id="dir-UP">↑</div><div></div>
-            <div class="dpad-btn" id="dir-LEFT">←</div>
-            <div class="dpad-btn" style="background:transparent"></div>
-            <div class="dpad-btn" id="dir-RIGHT">→</div>
-            <div></div><div class="dpad-btn" id="dir-DOWN">↓</div><div></div>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" id="g-prog" style="width:0%"></div></div>
-          <div style="font-size:.72rem;color:var(--muted);text-align:center" id="g-prog-txt">Ready</div>
-        </div>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:1rem">
-        <div class="card">
-          <div class="card-title">Controls</div>
-          <div class="controls">
-            <button class="btn btn-primary" id="btn-g-train" onclick="train2048()">⚡ Train RL Agent</button>
-            <button class="btn btn-primary" id="btn-g-play"  onclick="play2048()" disabled>▶ Play Episode</button>
-            <button class="btn btn-secondary" onclick="reset2048()">↺ Reset</button>
-            <div class="speed-row">
-              <span>Speed</span>
-              <input type="range" id="g-speed" min="30" max="600" value="180" step="30"
-                oninput="document.getElementById('g-speed-lbl').textContent=this.value+'ms'">
-              <span id="g-speed-lbl">180ms</span>
+        <div class="side-column">
+          <section class="card">
+            <div class="card-header"><div class="card-title">Controls</div></div>
+            <div class="card-body">
+              <div class="control-grid">
+                <label>
+                  Policy
+                  <select class="select" id="game-policy">
+                    <option value="hybrid">Hybrid Q + Expectimax</option>
+                    <option value="q">RL Q Policy</option>
+                    <option value="expectimax">Expectimax</option>
+                    <option value="random">Random Policy</option>
+                  </select>
+                </label>
+                <label>
+                  Episodes
+                  <input class="input" id="game-episodes" type="number" min="10" max="5000" value="1000" />
+                </label>
+                <label>
+                  Seed
+                  <input class="input" id="game-seed" type="number" min="0" max="999999999" value="29" />
+                </label>
+                <label>
+                  Move cap
+                  <input class="input" id="game-max-moves" type="number" min="20" max="5000" value="1000" />
+                </label>
+              </div>
+              <div class="button-row">
+                <button class="button button-primary" id="btn-game-train">Train</button>
+                <button class="button button-secondary" id="btn-game-play" disabled>Play</button>
+              </div>
+              <div class="button-row">
+                <button class="button button-secondary" id="btn-game-save">Save model</button>
+                <button class="button button-secondary" id="btn-game-load">Load model</button>
+                <button class="button button-danger" id="btn-game-reset">Reset model</button>
+              </div>
             </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><div class="card-title">Stats</div></div>
+            <div class="card-body stat-grid">
+              <div class="stat"><div class="stat-value" id="g-stat-step">0</div><div class="stat-label">Move</div></div>
+              <div class="stat"><div class="stat-value" id="g-stat-score">0</div><div class="stat-label">Score</div></div>
+              <div class="stat"><div class="stat-value" id="g-stat-max">-</div><div class="stat-label">Max tile</div></div>
+              <div class="stat"><div class="stat-value" id="g-stat-reward">-</div><div class="stat-label">Reward</div></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><div class="card-title">Action values</div></div>
+            <div class="card-body" id="game-explain"><div class="empty-state">Run a 2048 episode to inspect action values.</div></div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><div class="card-title">Strategy heatmap</div></div>
+            <div class="card-body" id="game-heatmap"><div class="empty-state">Run a 2048 episode to inspect tile priority.</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="card settings-panel">
+        <div class="card-header"><div class="card-title">Training hyperparameters</div></div>
+        <div class="card-body settings-grid">
+          <label>
+            Learning rate
+            <input class="input" id="hp-alpha" type="number" min="0.001" max="1" step="0.001" value="0.3" />
+          </label>
+          <label>
+            Discount
+            <input class="input" id="hp-gamma" type="number" min="0" max="1" step="0.001" value="0.95" />
+          </label>
+          <label>
+            Exploration
+            <input class="input" id="hp-epsilon" type="number" min="0" max="1" step="0.001" value="1" />
+          </label>
+          <label>
+            Decay
+            <input class="input" id="hp-eps-decay" type="number" min="0.5" max="1" step="0.001" value="0.995" />
+          </label>
+          <label>
+            Min exploration
+            <input class="input" id="hp-eps-min" type="number" min="0" max="1" step="0.001" value="0.05" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card comparison-controls">
+        <div class="card-header"><div class="card-title">Comparison controls</div></div>
+        <div class="card-body comparison-control-grid">
+          <label>
+            Sudoku difficulty
+            <select class="select" id="compare-difficulty">
+              <option value="easy">easy</option>
+              <option value="medium" selected>medium</option>
+              <option value="hard">hard</option>
+            </select>
+          </label>
+          <label>
+            Runs
+            <input class="input" id="compare-runs" type="number" min="1" max="10" value="3" />
+          </label>
+          <label>
+            First seed
+            <input class="input" id="compare-seed" type="number" min="0" max="999999999" value="101" />
+          </label>
+          <label>
+            2048 move cap
+            <input class="input" id="compare-max-moves" type="number" min="20" max="2000" value="600" />
+          </label>
+          <div class="comparison-action">
+            <button class="button button-primary" id="btn-compare">Run comparison</button>
+            <button class="button button-secondary" id="btn-export">Export artifacts</button>
           </div>
         </div>
+        <div class="card-body compact-output" id="export-artifacts"></div>
+      </section>
 
-        <div class="card">
-          <div class="card-title">Stats</div>
-          <div class="stat-grid">
-            <div class="stat"><div class="stat-value" id="g-step">0</div><div class="stat-label">Move</div></div>
-            <div class="stat"><div class="stat-value" id="g-score">0</div><div class="stat-label">Score</div></div>
-            <div class="stat"><div class="stat-value" id="g-max">—</div><div class="stat-label">Max Tile</div></div>
-            <div class="stat"><div class="stat-value" id="g-reward">—</div><div class="stat-label">Reward</div></div>
+      <section class="card">
+        <div class="card-header"><div class="card-title">Results dashboard</div></div>
+        <div class="card-body dashboard-grid" id="results-dashboard">
+          <div class="empty-state">Run comparison to summarize the strongest methods.</div>
+        </div>
+      </section>
+
+      <section class="card replay-controls">
+        <div class="card-header"><div class="card-title">Side-by-side replay</div></div>
+        <div class="card-body comparison-control-grid">
+          <label>
+            Domain
+            <select class="select" id="replay-domain">
+              <option value="sudoku">Sudoku</option>
+              <option value="2048">2048</option>
+            </select>
+          </label>
+          <label>
+            Method A
+            <select class="select" id="replay-method-a"></select>
+          </label>
+          <label>
+            Method B
+            <select class="select" id="replay-method-b"></select>
+          </label>
+          <label>
+            Seed
+            <input class="input" id="replay-seed" type="number" min="0" max="999999999" value="101" />
+          </label>
+          <label>
+            Move cap
+            <input class="input" id="replay-max-moves" type="number" min="20" max="2000" value="400" />
+          </label>
+          <div class="comparison-action">
+            <button class="button button-primary" id="btn-replay">Run replay</button>
           </div>
         </div>
-
-        <div class="card">
-          <div class="card-title">Agent Log</div>
-          <div class="log" id="g-log"><div class="log-entry">Ready. Train an agent to begin.</div></div>
+        <div class="card-body replay-grid" id="side-by-side-replay">
+          <div class="empty-state">Choose two methods to compare final boards and metrics.</div>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
+      </section>
 
-<script src="script.js"></script>
-</body>
+      <section class="analysis-grid">
+        <section class="card">
+          <div class="card-header"><div class="card-title">Sudoku comparison</div></div>
+          <div class="card-body" id="sudoku-comparison"><div class="empty-state">Choose settings above, then run comparison.</div></div>
+        </section>
+        <section class="card">
+          <div class="card-header"><div class="card-title">2048 comparison</div></div>
+          <div class="card-body" id="game-comparison"><div class="empty-state">Choose settings above, then run comparison.</div></div>
+        </section>
+      </section>
+
+      <section class="analysis-grid">
+        <section class="card">
+          <div class="card-header"><div class="card-title">Sudoku training curve</div></div>
+          <div class="card-body" id="sudoku-curve"><div class="empty-state">No training history loaded.</div></div>
+        </section>
+        <section class="card">
+          <div class="card-header"><div class="card-title">2048 training curve</div></div>
+          <div class="card-body" id="game-curve"><div class="empty-state">No training history loaded.</div></div>
+        </section>
+      </section>
+
+      <div class="footer-space"></div>
+    </main>
+    <script src="script.js"></script>
+  </body>
 </html>
